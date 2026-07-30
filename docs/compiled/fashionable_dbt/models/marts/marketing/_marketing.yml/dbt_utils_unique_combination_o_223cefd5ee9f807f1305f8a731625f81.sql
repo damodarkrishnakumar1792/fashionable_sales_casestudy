@@ -1,0 +1,20 @@
+
+
+
+
+
+
+with validation_errors as (
+
+    select
+        category, has_promotion
+    from "fashionable"."main_marketing"."mart_promotion_performance"
+    group by category, has_promotion
+    having count(*) > 1
+
+)
+
+select *
+from validation_errors
+
+

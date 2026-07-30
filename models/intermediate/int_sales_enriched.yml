@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: int_sales_enriched
+    description: >
+      Staging sales enriched with derived business fields and surrogate
+      keys used downstream by the fact and dimension models.
+      Grain: one row per order line (order_id + sku).
+    columns:
+      - name: order_line_key
+        description: "Surrogate key for the fact grain, generated from (order_id, sku)."
+        tests:
+          - unique
+          - not_null
+      - name: product_natural_key
+        description: "Durable natural key (sku) used to join to the Type-2 dim_product snapshot point-in-time."
+        tests:
+          - not_null
+      - name: ship_location_natural_key
+        description: "Postal code, the durable natural key used to join to the Type-2 dim_ship_location snapshot point-in-time (imperfect as there can be unknown values)."
+      - name: fulfilment_key
+        description: "Surrogate key for the fulfilment junk dimension."
+        tests:
+          - not_null
+      - name: season
+        description: "Derived season from order_date. See get_season() macro for definition and documented assumption."
+      - name: is_cancelled
+        description: "True when order_status = 'Cancelled'."

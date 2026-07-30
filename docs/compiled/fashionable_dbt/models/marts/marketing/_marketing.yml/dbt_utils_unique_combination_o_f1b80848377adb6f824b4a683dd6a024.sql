@@ -1,0 +1,20 @@
+
+
+
+
+
+
+with validation_errors as (
+
+    select
+        category, size
+    from "fashionable"."main_marketing"."mart_size_performance"
+    group by category, size
+    having count(*) > 1
+
+)
+
+select *
+from validation_errors
+
+

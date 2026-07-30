@@ -1,0 +1,136 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Standard generated date dimension. Grain: one row per calendar day."
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: dim_product
+    description: >
+      Type-2 product dimension (style, category, size, ASIN per SKU),
+      sourced from dim_product_snapshot. Grain: one row per SKU per
+      distinct attribute version.
+    columns:
+      - name: product_sk
+        description: "Surrogate key, unique per SKU per version."
+        tests: [unique, not_null]
+      - name: sku
+        tests: [not_null]
+      - name: is_current
+        tests:
+          - accepted_values:
+             arguments:
+               values: [true, false]
+
+  - name: dim_ship_location
+    description: >
+      Type-2 shipping-location dimension keyed on postal code. Grain: one
+      row per postal code per distinct attribute version.
+    columns:
+      - name: ship_location_sk
+        tests: [unique, not_null]
+      - name: ship_postal_code
+        tests: [not_null]
+
+  - name: dim_fulfilment
+    description: >
+      Kimball junk dimension bundling fulfilment/channel/service-level/
+      courier/B2B flags. Grain: one row per distinct combination observed.
+    columns:
+      - name: fulfilment_sk
+        tests: [unique, not_null]
+
+  - name: fct_order_lines
+    description: >
+      Core fact table. Grain: one row per order line (order_id, sku).
+      Measures: quantity, amount (nullable for cancelled/zero-qty lines).
+      CONTRACT ENFORCED: this model declares a dbt model contract — the
+      column list and data types below are the stable interface other
+      teams/tools can build against. A change to this model that isn't
+      reflected here will fail the build, on purpose, rather than
+      silently changing the table's shape underneath consumers. This is
+      a direct response to the "data contracts" feedback — applied here
+      first as the highest-value model to contract, not blanket-applied
+      to every model in the project.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: order_line_key
+        description: "Primary key of the fact table."
+        data_type: varchar
+        tests: [unique, not_null]
+      - name: order_id
+        description: "Degenerate dimension — order identifier, not unique at this grain."
+        data_type: varchar
+        tests: [not_null]
+      - name: product_sk
+        data_type: varchar
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_sk
+      - name: ship_location_sk
+        data_type: varchar
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_ship_location')
+                field: ship_location_sk
+      - name: fulfilment_sk
+        data_type: varchar
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_fulfilment')
+                field: fulfilment_sk
+      - name: order_date_key
+        data_type: integer
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: order_date
+        data_type: date
+        tests: [not_null]
+      - name: order_status
+        data_type: varchar
+        tests: [not_null]
+      - name: is_cancelled
+        data_type: boolean
+        tests: [not_null]
+      - name: season
+        data_type: varchar
+      - name: quantity
+        data_type: integer
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                config:
+                  severity: warn
+      - name: amount
+        description: "Nullable by source but changed to 0 for cancelled/zero-qty lines."
+        data_type: double
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+      - name: currency_code
+        data_type: varchar
+      - name: promotion_ids
+        data_type: varchar
+      - name: _loaded_at
+        data_type: timestamp
+      - name: _dbt_run_date
+        data_type: timestamp

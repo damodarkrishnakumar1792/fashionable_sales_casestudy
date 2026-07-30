@@ -1,0 +1,38 @@
+name: 'fashionable_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: 'fashionable_dbt' 
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+clean-targets: ["target", "dbt_packages"]
+
+
+models:
+  fashionable_dbt:
+    staging:
+      +materialized: table
+      +schema: staging
+      +docs:
+        node_color: "#534AB7"    # purple — matches staging layer      
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      core:
+        +materialized: table
+        +schema: core
+        +docs:
+          node_color: "#993C1D"    # coral — matches mart layer
+      marketing:
+        +materialized: table
+        +schema: marketing
+
+snapshots:
+  fashionable_dbt:
+    +target_schema: snapshots

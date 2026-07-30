@@ -1,0 +1,190 @@
+version: 2
+
+models:
+  - name: mart_sales_by_region
+    description: >
+      Business question: "which product styles/categories are most
+      popular in [city]?". Grain: one row per ship_state + ship_city +
+      category.
+    columns:
+      - name: category
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ship_state, ship_city, category]
+
+  - name: mart_sales_by_category_style
+    description: "Grain: one row per category + style + size."
+    columns:
+      - name: category
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [category, style, size]
+
+  - name: mart_seasonal_trends
+    description: >
+      Business question: "what is the sales trend for different
+      seasons?". Grain: one row per season + order_year + category.
+    columns:
+      - name: season
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, order_year, category]
+
+  - name: mart_channel_performance
+    description: "Grain: one row per fulfilment + sales_channel + ship_service_level + is_b2b."
+    columns:
+      - name: fulfilment
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [fulfilment, sales_channel, ship_service_level, is_b2b]
+
+  - name: mart_top_products
+    description: >
+      Business question: "what are our best/worst-selling products?".
+      Grain: one row per SKU. revenue_rank: 1 = highest confirmed
+      (non-cancelled) revenue.
+    columns:
+      - name: sku
+        tests: [not_null]
+      - name: revenue_rank
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sku]
+
+  - name: mart_promotion_performance
+    description: >
+      Business question: "do promotions move volume, and do they come
+      with a higher cancellation rate?". Grain: one row per category +
+      has_promotion. has_promotion is derived from promotion_ids being
+      non-blank , model SQL for the stated assumption.
+    columns:
+      - name: category
+        tests: [not_null]
+      - name: has_promotion
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [category, has_promotion]
+
+  - name: mart_monthly_trends
+    description: >
+      Business question: "what's the month-by-month trajectory?" — finer
+      granularity than mart_seasonal_trends, plus an explicit
+      month-over-month revenue growth rate. Grain: one row per
+      order_year + order_month + category.
+    columns:
+      - name: order_year
+        tests: [not_null]
+      - name: order_month
+        tests: [not_null]
+      - name: category
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_year, order_month, category]
+
+  - name: mart_size_performance
+    description: >
+      Business question: "which sizes sell well vs. get cancelled most,
+      within each category?". Grain: one row per category + size.
+    columns:
+      - name: category
+        tests: [not_null]
+      - name: size
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [category, size]
+
+  - name: mart_order_summary
+    description: >
+      Business question: "what's our average order value / basket
+      size?" — the one mart at the ORDER grain rather than order-line
+      grain. Grain: one row per order_id.
+    columns:
+      - name: order_id
+        tests: [not_null]
+      - name: line_item_count
+        tests: [not_null]
+      - name: order_fulfillment_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Fully Cancelled', 'Partially Cancelled', 'Completed']
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id]
+
+  - name: mart_location_repeat_activity
+    description: >
+      Business question: "which ship-to locations order more than
+      once?" — a repeat-business proxy, since this dataset has no
+      customer identifier. Grain: one row per ship_postal_code. See
+      model SQL for the explicit limitation this proxy carries.
+    columns:
+      - name: distinct_order_count
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ship_postal_code]
+
+  - name: mart_cancellation_deep_dive
+    description: >
+      Business question: "where exactly are cancellations concentrated?"
+      — cross-dimensional (category x ship_state x fulfilment), unlike
+      the single-dimension cancellation_rate columns elsewhere. Grain:
+      one row per category + ship_state + fulfilment. Intentionally
+      high-cardinality; filter on order_line_count downstream for
+      statistically thin groups rather than expecting this mart to
+      pre-filter them.
+    columns:
+      - name: category
+        tests: [not_null]
+      - name: cancellation_rate
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+              config:
+                severity: warn
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [category, ship_state, fulfilment]
+
+  - name: mart_weekday_performance
+    description: >
+      Business question: "which days of the week drive the most sales/
+      cancellations?" — useful for promo timing and staffing. Grain: one
+      row per day_of_week. NOTE: day-of-week numbering convention
+      (0=Sunday assumed) is unverified against the live DuckDB install
+      — see model SQL.
+    columns:
+      - name: day_of_week_num
+        tests: [not_null]
+      - name: day_name
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [day_of_week_num]

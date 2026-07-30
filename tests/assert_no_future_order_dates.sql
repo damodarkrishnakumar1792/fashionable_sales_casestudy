@@ -1,0 +1,8 @@
+-- Business-rule test: a sales order cannot legitimately be dated in the future. 
+-- current_date is evaluated at query time, not compile time, so this
+-- stays a meaningful check every time the pipeline is re-run, not just
+-- a one-off snapshot of "future" relative to when this file was written.
+
+select *
+from {{ ref('fct_order_lines') }}
+where order_date > current_date

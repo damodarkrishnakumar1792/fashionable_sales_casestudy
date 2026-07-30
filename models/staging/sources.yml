@@ -1,0 +1,62 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw data loaded directly from the Fashionable CSV"
+    schema: main # default schema
+    tables:
+      - name: raw_sales
+        description: >
+          One row per order line from the Fashionable Sale Report CSV.
+          Loaded upstream via a Python script (outside this dbt project) :
+          see project README for the loading step.
+        # NOTE: freshness/loaded_at checks are omitted because the raw load
+        # process does not expose a load timestamp column to dbt. If one is
+        # added upstream, add a `loaded_at_field` + freshness block here.
+        columns:
+          - name: index
+            description: "Row index from the source CSV export. Not a business key."
+          - name: "Order ID"
+            description: "Order identifier. NOT unique per row — an order can contain multiple line items (one row per SKU in the order)."
+          - name: Date
+            description: "Order date as a string, observed format MM-DD-YY. Verify against full column profile before trusting downstream casts."
+          - name: Status
+            description: "Order status, e.g. Shipped, Cancelled, 'Shipped - Delivered to Buyer'."
+          - name: Fulfilment
+            description: "Fulfilment method, e.g. Merchant, Fashionable (platform-fulfilled)."
+          - name: "Sales Channel"
+            description: "Sales channel the order was placed through."
+          - name: "ship-service-level"
+            description: "Shipping service tier, e.g. Standard, Expedited."
+          - name: Style
+            description: "Product style code."
+          - name: SKU
+            description: "Stock keeping unit - the sellable product variant."
+          - name: Category
+            description: "Product category, e.g. kurta, Set, Western Dress, Top."
+          - name: Size
+            description: "Product size."
+          - name: ASIN
+            description: "Platform product identifier."
+          - name: "Courier Status"
+            description: "Courier-reported delivery status. Can be blank for cancelled orders."
+          - name: Qty
+            description: "Quantity ordered on this line. Observed 0 for cancelled orders."
+          - name: currency
+            description: "Currency code for the amount column."
+          - name: Amount
+            description: "Order line amount. Blank/null observed for cancelled (Qty=0) orders — treat as null, not 0."
+          - name: "ship-city"
+            description: "Shipping destination city."
+          - name: "ship-state"
+            description: "Shipping destination state."
+          - name: "ship-postal-code"
+            description: "Shipping destination postal code."
+          - name: "ship-country"
+            description: "Shipping destination country."
+          - name: "promotion-ids"
+            description: "Promotion identifier(s) applied to the order, if any."
+          - name: B2B
+            description: "Boolean flag indicating a business-to-business order."
+          - name: "fulfilled-by"
+            description: "Fulfilment partner, e.g. Easy Ship."
