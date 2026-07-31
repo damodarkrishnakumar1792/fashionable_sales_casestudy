@@ -125,6 +125,7 @@ dbt docs serve
 `dbt seed` step is deliberately not done as the source is pre-loaded into `raw.raw_sales` by a
 python script, to include the usage of python ,per project instructions.
 
+
 ## Data dictionary / lineage
 
 Full column-level documentation lives in each layer's `.yml` file:
@@ -136,6 +137,9 @@ Full column-level documentation lives in each layer's `.yml` file:
 
 Run `dbt docs generate && dbt docs serve` for the interactive lineage
 graph (DAG) and searchable data dictionary.
+
+- Note : Generated docs has been deployed as Github pages and can be viewed using the link 
+  https://damodarkrishnakumar1792.github.io/fashionable_sales_casestudy
 
 ## Assumptions & known limitations
 
