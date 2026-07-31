@@ -1,15 +1,15 @@
 # Fashionable Analytics - Data Engineering Project
 
 This repository contains a production-grade analytics data pipeline built atop the Fashionable Sales Report dataset, 
-implementing a Kimball-style star schema to deliver clean, performant, and analytics-ready data marts. 
+implementing a Kimball-style star schema to deliver clean and analytics ready data marts. 
 By applying dimensional modeling best practices, including conformed dimensions and degenerate facts , 
 the pipeline transforms raw operational data into a structured warehouse optimized for marketing intelligence and self-service reporting. 
-The resulting architecture enables stakeholders to run high-performance analytical queries that answer critical business questions, 
-including: 
-Which product styles and categories are most popular within specific cities or regions? 
-How do sales volumes and gross revenue trend across seasonal, monthly, or promotional periods? 
-What is the contribution of each product size, or promotional campaign to overall performance? etc
-Each data mart is designed to be modular, self-contained, and portable — ready for consumption by BI tools, statistical analysis,.
+The resulting architecture enables stakeholders to run high performance analytical queries that answer some critical business questions, including: 
+- Which product styles and categories are most popular within specific cities or regions? 
+- How do sales volumes and gross revenue trend across seasonal, monthly, or promotional periods? 
+- What is the contribution of each product size, or promotional campaign to overall performance? etc.
+
+Each data mart is designed to be modular, self-contained, portable and ready for consumption by BI tools, statistical analysis,.
 
 ## Data Loading and Exploration
 
