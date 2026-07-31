@@ -1,0 +1,68 @@
+name: dbt CI
+
+# Data Quality & Testing, and CI/CD under DataOps & Engineering Practices 
+#
+# SCOPE, STATED HONESTLY: this job runs `dbt deps` + `dbt parse` +
+# `dbt compile`. That validates the whole project, every Jinja/macro
+# reference resolves, every ref()/source() points at something real, and
+# every model's SQL is syntactically valid, without needing a live
+# database connection or real data.
+#
+# It deliberately does NOT run `dbt run`/`dbt test` in CI, because doing
+# that honestly would need a real (or fixture) DuckDB database seeded
+# with raw_sales , which this repo doesn't ship, since the actual source
+# data is loaded upstream by a separate Python process outside this
+# project. Faking that with placeholder data risked giving a false sense
+# of "tests pass in CI" while validating nothing about the real pipeline.
+# NEXT STEP to extend this: add a small fixture seed + a CI-only
+# profiles target pointing sources.yml at it, then add `dbt run`/`dbt test`
+# as further job steps.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-compile-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # NOTE: verify this Python version and the dbt-core/dbt-duckdb pins
+      # below against what's actually compatible at the time you run
+      # this — not confirmed against a live install here.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dbt
+        run: |
+          pip install dbt-core dbt-duckdb
+
+      - name: Set up a throwaway local profile
+        # dbt needs a profiles.yml to run even `dbt parse`/`dbt compile`.
+        # This points at an in-memory/local DuckDB file that doesn't need
+        # to contain any real data for parse/compile to succeed.
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'PROFILE'
+          fashionable_dbt:
+            target: ci
+            outputs:
+              ci:
+                type: duckdb
+                path: 'ci_throwaway.duckdb'
+                threads: 2
+          PROFILE
+
+      - name: dbt deps #(validates and installs packages from yml)
+        run: dbt deps
+
+      - name: dbt parse #(validates project + Jinja + refs resolve)
+        run: dbt parse
+
+      - name: dbt compile #(validates every model's SQL is well-formed)
+        run: dbt compile
