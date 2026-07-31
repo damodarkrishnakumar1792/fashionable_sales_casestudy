@@ -1,9 +1,15 @@
-# Fashionable Analytics — Data Engineering Project
+# Fashionable Analytics - Data Engineering Project
 
-A complete Data pipeline with the use of a Kimball-style star schema built on the Fashionable Sale Report data,
-designed to let marketers answer questions like "which product
-styles/categories are most popular in a given city?" and "what's the
-sales trend by season?" etc.
+This repository contains a production-grade analytics data pipeline built atop the Fashionable Sales Report dataset, 
+implementing a Kimball-style star schema to deliver clean, performant, and analytics-ready data marts. 
+By applying dimensional modeling best practices, including conformed dimensions and degenerate facts , 
+the pipeline transforms raw operational data into a structured warehouse optimized for marketing intelligence and self-service reporting. 
+The resulting architecture enables stakeholders to run high-performance analytical queries that answer critical business questions, 
+including: 
+Which product styles and categories are most popular within specific cities or regions? 
+How do sales volumes and gross revenue trend across seasonal, monthly, or promotional periods? 
+What is the contribution of each product size, or promotional campaign to overall performance? etc
+Each data mart is designed to be modular, self-contained, and portable — ready for consumption by BI tools, statistical analysis,.
 
 ## Data Loading and Exploration
 
@@ -29,17 +35,17 @@ Data profiling:
 ## Architecture for dbt
 
 Infrastructure :
-Terminal used : VS Code
-Database: DuckDB (single-file analytical database, zero external dependencies)
-Adapter: dbt-duckdb
-dbt version: 1.11.12
+- Terminal used : VS Code
+- Database: DuckDB (single-file analytical database, zero external dependencies)
+- Adapter: dbt-duckdb
+- dbt version: 1.11.12
 
 Key design decisions :
-Star schema over snowflake: Dimensions are denormalized to minimize JOIN complexity in BI tools and improve query performance.
-Surrogate keys used: All dimensions use hash-based surrogate keys. This isolates the warehouse from source system key changes and handles late-arriving dimensions gracefully.
-Degenerate dimensions: Transaction identifiers like order level attributes remain in fact tables rather than spawning one-column dimension tables.
-Slowly Changing Dimensions (SCD): product dimension use dbt snapshots to track historical changes over time (Type 2).
-Bus matrix alignment: The fact table shares conformed dimensions (dim_date, dim_product etc ), enabling consistent analysis across the business.
+- Star schema over snowflake: Dimensions are denormalized to minimize JOIN complexity in BI tools and improve query performance.
+- Surrogate keys used: All dimensions use hash-based surrogate keys. This isolates the warehouse from source system key changes and handles late-arriving dimensions gracefully.
+- Degenerate dimensions: Transaction identifiers like order level attributes remain in fact tables rather than spawning one-column dimension tables.
+- Slowly Changing Dimensions (SCD): product dimension use dbt snapshots to track historical changes over time (Type 2).
+- Bus matrix alignment: The fact table shares conformed dimensions (dim_date, dim_product etc ), enabling consistent analysis across the business.
 
 ```
 raw.raw_sales (DuckDB, loaded upstream via Python — outside this project)
@@ -75,10 +81,11 @@ marts/marketing/
 ```
 
 In addition to the above architecture, 
-Data quality is ensured through a layered testing framework. 
-Generic tests — defined in YAML to enforce structural integrity (e.g., primary key uniqueness, foreign key relationships, accepted value ranges). 
-Singular tests — custom SQL files in tests/ to validate complex business logic that cannot be expressed declaratively (e.g., "shipped amount should never exceed order amount"). 
-Reusable macros in macros/ centralize common logic such as surrogate key generation and seasonality classification, ensuring consistency across all models. 
+- Data quality is ensured through a layered testing framework. 
+- Generic tests — defined in YAML to enforce structural integrity (e.g., primary key uniqueness, foreign key relationships, accepted value ranges). 
+- Singular tests — custom SQL files in tests/ to validate complex business logic that cannot be expressed declaratively (e.g., "shipped amount should never exceed order amount"). 
+- Reusable macros in macros/ centralize common logic such as surrogate key generation and seasonality classification, ensuring consistency across all models.
+ 
 Together with configurations at model level, these mechanisms prevent bad data from propagating to downstream analytics. 
 See tests/ and macros/ directories in the repo, and Testing strategy below for the detailed implementation.
 
@@ -91,6 +98,10 @@ than once with different SKUs, so `order_id` alone can not be a valid key.
 ```bash
 # 1. Install dependencies (verify package versions of dbt-labs/dbt_utils and metaplane/dbt_expectations)
 dbt deps
+
+# 2. Staging and Intermediate must run before the snapshots that account for dim_product / dim_ship_location
+dbt run -s stg_*
+dbt run -s int_*
 
 # 2. Snapshots must run before the marts that depend on dim_product / dim_ship_location, since those are built from snapshot tables
 dbt snapshot
@@ -181,13 +192,12 @@ These are explicit, documented judgment calls — not hidden defaults:
 
 ## CI/CD
 
-`.github/workflows/dbt_ci.yml` runs `dbt deps` + `dbt parse` + `dbt compile`
-on every push/PR to `main`. This validates the whole project for every
-macro/ref/source resolves and every model's SQL is syntactically valid 
-without needing a live database. It deliberately stops short of
-`dbt run`/`dbt test` in CI; see the comment header in that workflow file
-for why, and what a fuller CI setup (with a seeded fixture database)
-would need to add.
+The repository includes a GitHub Actions workflow `.github/workflows/dbt_ci.yml` that executes on every push and pull request to `main`. 
+It runs `dbt deps`, `dbt parse`, and `dbt compile` to validate the entire project: 
+every macro resolves correctly, every ref() and source() points to a valid object, and every model's SQL is syntactically sound. 
+This "thin CI" approach requires no live database connection, making it fast, cost-free, and safe for open-source or assessment environments. 
+It intentionally does not execute dbt run or dbt test. These steps require a seeded fixture database, service account credentials, and secrets management. 
+See the comment header in the workflow file for the full rationale and a checklist of what a production-grade CI/CD pipeline would need to add
 
 ## Data cleaning
 
@@ -244,7 +254,8 @@ step: For example :
 ## Visualization Strategy
 
 Power BI is/ can be used as it is an open source tool.
-The data marts are exported as parquet files. for less storage and portability (no dependencies) and performance.
+The 12 data marts are exported as parquet files, for less storage and portability (no dependencies) and performance from duckdb,
+which will be the source for Power BI dashboards.Just one dimension is used to create a slicer across all pages.
 The data marts are independent of each other and simple individual charts are made using these marts. 
 See the PowerBI file in the repo for a clearer picture.
   
@@ -252,7 +263,11 @@ See the PowerBI file in the repo for a clearer picture.
 ## Known gaps / future improvements
 
 - Freshness checks on the source are omitted because the raw load has no
-  `loaded_at` column exposed to dbt — add one upstream if freshness SLAs
-  matter.
-- No Customer related data for future analysis.
-- If data is from an API, the whole setup can be changed to streaming analytics, incorporated orchestrators like Airflow or Dagster.
+  `loaded_at` column exposed to dbt which add one upstream if freshness SLAs matter.
+- Data Privacy & Customer Analytics: The current dataset does not contain any customer-level personally identifiable information (PII). 
+  While this ensures compliance with data privacy standards, it limits the ability to perform customer-centric analyses such as cohort retention, 
+  lifetime value (LTV) modeling, or churn prediction. Future iterations could incorporate privacy-compliant customer identifiers 
+  to unlock deeper behavioral insights.
+- Future Architecture & Streaming: The current pipeline is built for batch processing. 
+  If the source system transitions to an API-based data feed, the architecture can be extended to support streaming analytics. 
+  This would enable near real-time reporting and could incorporate modern orchestration tools such as Apache Airflow or Dagster for pipeline scheduling, monitoring, and dependency management.
